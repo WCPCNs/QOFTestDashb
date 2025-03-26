@@ -130,7 +130,6 @@
       display: block;
     }
 
-    /* Minor styling for the indicator tables */
     .indicator-section {
       margin-bottom: 2rem;
     }
@@ -158,6 +157,7 @@
       <button onclick="showPage('quickWinsSection')">Detailed Quick Wins</button>
       <button onclick="showPage('localHelpSection')">Local Help for QOF</button>
       <button onclick="showPage('indicatorOppSection')">Indicator Opportunities</button>
+      <button onclick="showPage('predictingWorkSection')">Predicting Future Work</button>
     </div>
 
     <!-- MAIN DASHBOARD SECTION -->
@@ -295,20 +295,56 @@
       </p>
       <ul>
         <li>They are very engaged and likely to attend an appointment soon.</li>
-        <li>They are already near the required metric (e.g. BP is borderline, 
-            or they only need a quick smoking status update, etc.).</li>
+        <li>They are already near the required metric (e.g. borderline BP, or 
+            they only need a quick smoking status updated).</li>
       </ul>
 
-      <!-- We'll build small tables for each indicator dynamically -->
       <div id="indicatorOppContent"></div>
     </div><!-- /indicatorOppSection -->
 
+    <!-- PREDICTING FUTURE WORK SECTION -->
+    <div id="predictingWorkSection" class="section">
+      <h2>Predicting Future Work</h2>
+      <p>
+        This page highlights how **age-based** QOF indicators can bring 
+        additional patients into scope during the year (turning the 
+        minimum age) or, for some indicators, remove patients if they 
+        age out. This helps predict future workload and income changes.
+      </p>
+
+      <div class="cards" id="futureWorkCards"></div>
+
+      <div class="chart-row">
+        <div class="chart-box">
+          <h3>New vs. Leaving Patients by Indicator</h3>
+          <canvas id="futureWorkChart"></canvas>
+        </div>
+        <!-- Could add another chart or table if you wish -->
+        <div class="chart-box">
+          <h3>Summary Table</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Indicator</th>
+                <th>Coming In</th>
+                <th>Aging Out</th>
+                <th>Net Gain</th>
+              </tr>
+            </thead>
+            <tbody id="futureWorkTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div><!-- /predictingWorkSection -->
+
   </div><!-- /container -->
 
-  <!-- CHART.JS SCRIPTS & DATA LOGIC -->
   <script>
-    // Dummy data for 9 practices
-    // We'll add an ID property for easy referencing
+    // **************************
+    // **** DUMMY DATA SETS ****
+    // **************************
+
+    // Main practice data
     const practices = [
       { id: "A", name: "Practice A", income: 150000, performance: 81, missed: 20000, indicatorProg: 70 },
       { id: "B", name: "Practice B", income: 130000, performance: 75, missed: 15000, indicatorProg: 64 },
@@ -321,7 +357,7 @@
       { id: "I", name: "Practice I", income: 125000, performance: 80, missed: 13000, indicatorProg: 68 },
     ];
 
-    // For Quick Wins: hypothetical borderline patients for each practice
+    // Quick wins borderline BP
     const borderlineBPData = [
       { id: "A", borderlineCount: 12, potentialIncome: 3000, intervention: "Medication review" },
       { id: "B", borderlineCount: 10, potentialIncome: 2500, intervention: "Follow-up BP check" },
@@ -334,44 +370,71 @@
       { id: "I", borderlineCount: 7,  potentialIncome: 1900, intervention: "Medication review" },
     ];
 
-    // For the new "Indicator Opportunities" page:
-    // Let's have a few indicators, each with top 5 "easy" patients
-    // We'll just store an array of objects
+    // Indicator Opportunity data
     const indicatorOpData = [
       {
         indicatorName: "Hypertension (HYP008/009)",
         topPatients: [
           { fakeID: "PT-314159", reason: "BP 142/91, borderline, patient is very engaged", note: "One med tweak could fix" },
-          { fakeID: "PT-271828", reason: "BP 139/90, needs recheck to confirm <140/90", note: "Comes in weekly with caretaker" },
-          { fakeID: "PT-161803", reason: "BP 141/91, next appointment already booked", note: "Likely to come in soon" },
-          { fakeID: "PT-141421", reason: "BP 143/92, missed only one dose, easily fixable", note: "Frequent visits" },
-          { fakeID: "PT-173205", reason: "BP 145/95, borderline, known for quick compliance", note: "Just needs reminder" },
+          { fakeID: "PT-271828", reason: "BP 139/90, needs recheck soon", note: "Comes in weekly with caretaker" },
+          { fakeID: "PT-161803", reason: "BP 141/91, next appointment booked", note: "Likely to come in soon" },
+          { fakeID: "PT-141421", reason: "BP 143/92, easily fixable", note: "Frequent visits" },
+          { fakeID: "PT-173205", reason: "BP 145/95, borderline, known compliance", note: "Just needs reminder" },
         ]
       },
       {
         indicatorName: "Asthma (AST007/AST008)",
         topPatients: [
-          { fakeID: "PT-602214", reason: "Asthma yearly review missing, patient always in practice", note: "Just needs a quick form" },
-          { fakeID: "PT-812857", reason: "Exacerbation recently, but near control target", note: "1 inhaler technique check" },
-          { fakeID: "PT-481211", reason: "No smoking status recorded, patient is a non-smoker", note: "1 code entry needed" },
-          { fakeID: "PT-331998", reason: "Personal action plan almost complete", note: "One quick update" },
-          { fakeID: "PT-005062", reason: "FeNO borderline, likely pass control check soon", note: "Highly engaged" },
+          { fakeID: "PT-602214", reason: "Annual review missing, always in practice", note: "Just needs a quick form" },
+          { fakeID: "PT-812857", reason: "Near control target, 1 inhaler check", note: "Easy to do" },
+          { fakeID: "PT-481211", reason: "No smoking status recorded, is non-smoker", note: "One code entry" },
+          { fakeID: "PT-331998", reason: "Personal action plan incomplete", note: "One quick update" },
+          { fakeID: "PT-005062", reason: "FeNO borderline, likely pass soon", note: "Highly engaged" },
         ]
       },
       {
         indicatorName: "Smoking (SMOK005)",
         topPatients: [
-          { fakeID: "PT-999001", reason: "Patient is a 'current smoker' but is close to quitting", note: "Offer cessation + code" },
-          { fakeID: "PT-999002", reason: "Patient smokes socially, likely easy fix", note: "One conversation" },
-          { fakeID: "PT-999003", reason: "Frequent visitor, just needs an updated smoking code", note: "No new script needed" },
-          { fakeID: "PT-999004", reason: "Already quit, but record not updated", note: "One code entry to move them out of 'current smoker'" },
-          { fakeID: "PT-999005", reason: "Highly motivated, attending next clinic", note: "One sign-off" },
+          { fakeID: "PT-999001", reason: "Close to quitting, needs cessation code", note: "One conversation" },
+          { fakeID: "PT-999002", reason: "Smokes socially, easy fix", note: "One prompt" },
+          { fakeID: "PT-999003", reason: "Frequent visitor, needs updated code", note: "No new script needed" },
+          { fakeID: "PT-999004", reason: "Already quit, record not updated", note: "One code entry" },
+          { fakeID: "PT-999005", reason: "Highly motivated, next clinic soon", note: "One sign-off" },
         ]
       }
     ];
 
+    // *** NEW *** Future Work data
+    // We'll imagine some major indicators with new or outgoing patients
+    const futureWorkData = [
+      {
+        indicator: "BP002 (45+ BP recorded)",
+        comingIn: 35,  // turning 45
+        goingOut: 0,   // no upper limit
+        notes: "Extra patients will need a BP check"
+      },
+      {
+        indicator: "DM017 (17+ with diabetes)",
+        comingIn: 12,  // turning 17
+        goingOut: 0,   // no upper limit
+        notes: "Newly 17-year-olds with DM must be added"
+      },
+      {
+        indicator: "OB003 (18+ obesity register)",
+        comingIn: 20,  // turning 18
+        goingOut: 0,   // no upper limit
+        notes: "Any with BMI≥30 (or 27.5 for certain ethnicities) will join"
+      },
+      {
+        indicator: "EXAMPLE-18-50 (if exists, ages 18-50 only)",
+        comingIn: 15,  // turning 18
+        goingOut: 10,  // turning 51
+        notes: "Net +5 patients remain in bracket"
+      }
+    ];
+
     // Global references to Chart.js objects
-    let incomeChart, performanceChart, missedChart, indicatorChart;
+    let incomeChart, performanceChart, missedChart, indicatorChart, futureWorkChart;
 
     // On page load
     window.addEventListener('DOMContentLoaded', () => {
@@ -401,6 +464,9 @@
 
       // Build the "Indicator Opportunities" page
       buildIndicatorOppPage();
+
+      // Build the "Predicting Future Work" page
+      buildFutureWorkPage();
     });
 
     // Build QuickWins Table
@@ -463,7 +529,83 @@
       });
     }
 
-    // Build initial Chart.js objects
+    // *** NEW *** Build "Predicting Future Work" Page
+    function buildFutureWorkPage() {
+      // We'll create some summary cards and a chart of 'coming in' vs. 'going out'
+      const cardsContainer = document.getElementById("futureWorkCards");
+
+      // We'll do a few summary stats
+      let totalIn = 0, totalOut = 0;
+      futureWorkData.forEach(f => {
+        totalIn += f.comingIn;
+        totalOut += f.goingOut;
+      });
+      const netChange = totalIn - totalOut;
+
+      // Build 3 cards: totalIn, totalOut, net
+      cardsContainer.appendChild(buildCard("Newly Eligible Patients", totalIn.toString()));
+      cardsContainer.appendChild(buildCard("Aging Out Patients", totalOut.toString()));
+      cardsContainer.appendChild(buildCard("Net Change", netChange.toString()));
+
+      // Build table summary
+      const tableBody = document.getElementById("futureWorkTableBody");
+      futureWorkData.forEach(f => {
+        const tr = document.createElement("tr");
+        const net = f.comingIn - f.goingOut;
+        tr.innerHTML = `
+          <td>${f.indicator}</td>
+          <td>${f.comingIn}</td>
+          <td>${f.goingOut}</td>
+          <td>${net > 0 ? "+" + net : net}</td>
+        `;
+        tableBody.appendChild(tr);
+      });
+
+      // Build a bar chart comparing 'comingIn' & 'goingOut'
+      const labels = futureWorkData.map(f => f.indicator);
+      const inData = futureWorkData.map(f => f.comingIn);
+      const outData = futureWorkData.map(f => f.goingOut);
+
+      futureWorkChart = new Chart(document.getElementById("futureWorkChart"), {
+        type: "bar",
+        data: {
+          labels: labels,
+          datasets: [
+            {
+              label: "Newly Eligible",
+              data: inData,
+              backgroundColor: "#00A499"
+            },
+            {
+              label: "Aging Out",
+              data: outData,
+              backgroundColor: "#FF8C00"
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          scales: {
+            y: { beginAtZero: true }
+          }
+        }
+      });
+    }
+
+    // Reuse existing buildCard function for a simple stat
+    function buildCard(title, value) {
+      const card = document.createElement("div");
+      card.classList.add("card");
+      card.innerHTML = `
+        <h2>${title}</h2>
+        <p>${value}</p>
+      `;
+      return card;
+    }
+
+    // Build initial Chart.js objects for main page
+    let incomeChart, performanceChart, missedChart, indicatorChart;
+
     function buildAllCharts() {
       // Income Chart
       incomeChart = new Chart(document.getElementById("incomeChart"), {
@@ -544,35 +686,26 @@
       });
     }
 
-    // Update entire dashboard when a practice changes
+    // Update entire dashboard (main page) when practice changes
     function updateDashboard(practiceId) {
       let filteredData = [];
-
       if (practiceId === "all") {
-        // Aggregate all
         filteredData = [...practices];
       } else {
-        // Single practice
         const single = practices.find(p => p.id === practiceId);
         filteredData.push(single);
       }
 
-      // Update cards
       updateCards(filteredData, practiceId === "all");
-
-      // Update table
       updateTable(filteredData, practiceId === "all");
-
-      // Update charts
       updateCharts(filteredData, practiceId === "all");
     }
 
     function updateCards(filteredData, isAll) {
       const cardsContainer = document.getElementById("cardsContainer");
-      cardsContainer.innerHTML = ""; // clear
+      cardsContainer.innerHTML = "";
 
       if (isAll) {
-        // Summation/averages
         let totalIncome = 0;
         let totalPerformance = 0;
         let totalMissed = 0;
@@ -587,14 +720,12 @@
         const avgPerf = totalPerformance / filteredData.length;
         const avgInd = totalIndicator / filteredData.length;
 
-        // Build 4 cards
         cardsContainer.appendChild(buildCard("Total Income (All)", `£${totalIncome.toLocaleString()}`));
         cardsContainer.appendChild(buildCard("Avg. Performance", `${avgPerf.toFixed(0)}%`));
         cardsContainer.appendChild(buildCard("Total Missed Income", `£${totalMissed.toLocaleString()}`));
         cardsContainer.appendChild(buildCard("Indicators Complete (Avg.)", `${avgInd.toFixed(0)}%`));
 
       } else {
-        // Single practice
         const p = filteredData[0];
         cardsContainer.appendChild(buildCard(`Income (${p.name})`, `£${p.income.toLocaleString()}`));
         cardsContainer.appendChild(buildCard(`Performance (${p.name})`, `${p.performance}%`));
@@ -603,22 +734,11 @@
       }
     }
 
-    function buildCard(title, value) {
-      const card = document.createElement("div");
-      card.classList.add("card");
-      card.innerHTML = `
-        <h2>${title}</h2>
-        <p>${value}</p>
-      `;
-      return card;
-    }
-
     function updateTable(filteredData, isAll) {
       const tb = document.getElementById("practiceTableBody");
-      tb.innerHTML = ""; // clear
+      tb.innerHTML = "";
 
       if (isAll) {
-        // Show all rows
         practices.forEach(pr => {
           const row = document.createElement("tr");
           row.innerHTML = `
@@ -631,7 +751,6 @@
           tb.appendChild(row);
         });
       } else {
-        // Single row
         const p = filteredData[0];
         const row = document.createElement("tr");
         row.innerHTML = `
@@ -646,7 +765,6 @@
     }
 
     function updateCharts(filteredData, isAll) {
-      // For the bar charts (Income, Performance, Missed) we want either multiple labels (all) or single
       let labels = [];
       let incomeData = [];
       let perfData = [];
@@ -654,43 +772,34 @@
       let indicData = [];
 
       if (isAll) {
-        // many data points
         labels = filteredData.map(p => p.name);
         incomeData = filteredData.map(p => p.income);
-        perfData = filteredData.map(p => p.performance);
+        perfData   = filteredData.map(p => p.performance);
         missedData = filteredData.map(p => p.missed);
-        // For the doughnut, let's do the average
         const avgInd = filteredData.reduce((sum, p) => sum + p.indicatorProg, 0) / filteredData.length;
-        // We'll just fill the doughnut data with that average or replicate something
-        indicData = [avgInd, avgInd, avgInd, avgInd]; 
+        indicData = [avgInd, avgInd, avgInd, avgInd];
       } else {
-        // single practice
         const p = filteredData[0];
         labels.push(p.name);
         incomeData.push(p.income);
         perfData.push(p.performance);
         missedData.push(p.missed);
-        // For doughnut, replicate practice's indicator
         indicData = [p.indicatorProg, p.indicatorProg, p.indicatorProg, p.indicatorProg];
       }
 
-      // Update data for each chart
-      // 1. Income
+      // Update the main page charts
       incomeChart.data.labels = labels;
       incomeChart.data.datasets[0].data = incomeData;
       incomeChart.update();
 
-      // 2. Performance
       performanceChart.data.labels = labels;
       performanceChart.data.datasets[0].data = perfData;
       performanceChart.update();
 
-      // 3. Missed
       missedChart.data.labels = labels;
       missedChart.data.datasets[0].data = missedData;
       missedChart.update();
 
-      // 4. Indicator Chart
       indicatorChart.data.datasets[0].data = indicData;
       indicatorChart.update();
     }
@@ -704,6 +813,5 @@
       });
     }
   </script>
-
 </body>
 </html>
