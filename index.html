@@ -230,36 +230,209 @@
       <div id="indicatorOppContent"></div>
     </div>
 
-    <!-- PREDICTING FUTURE WORK -->
-    <div id="predictingWorkSection" class="section">
-      <h2>Predicting Future Work</h2>
-      <p>
-        Forecast how many patients will join or leave certain <em>age-based</em> QOF 
-        indicators, so you can plan upcoming workload and potential new/lost income.
-      </p>
-      <div class="cards" id="futureWorkCards"></div>
-      <div class="chart-row">
-        <div class="chart-box">
-          <h3>New vs. Leaving Patients</h3>
-          <canvas id="futureWorkChart"></canvas>
-        </div>
-        <div class="chart-box">
-          <h3>Summary Table</h3>
-          <table>
-            <thead>
-              <tr>
-                <th>Indicator</th>
-                <th>Coming In</th>
-                <th>Aging Out</th>
-                <th>Net Gain</th>
-              </tr>
-            </thead>
-            <tbody id="futureWorkTableBody"></tbody>
-          </table>
-        </div>
-      </div>
+<!-- ======================== -->
+<!-- PREDICTING FUTURE WORK PAGE (REPLACEMENT) -->
+<!-- ======================== -->
+<div id="predictingWorkSection" class="section">
+  <h2>Predicting Future Work</h2>
+  <p>
+    This page gives deeper financial insights into newly eligible vs. aging-out patients.
+    We also show historical data (past 2 years) to give you a trend of how many patients 
+    were added or removed from relevant age-based indicators. 
+  </p>
+
+  <!-- KPI Cards for historical view -->
+  <div class="cards" id="futureWorkKPICards"></div>
+
+  <!-- Deeper financial analysis chart -->
+  <div class="chart-row">
+    <div class="chart-box">
+      <h3>Financial Impact of New vs. Leaving Patients</h3>
+      <canvas id="futureWorkFinancialChart"></canvas>
+    </div>
+    <div class="chart-box">
+      <h3>Summary Table</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Indicator</th>
+            <th>Coming In</th>
+            <th>Aging Out</th>
+            <th>Net Patients</th>
+            <th>Est. Income Impact (£)</th>
+          </tr>
+        </thead>
+        <tbody id="futureWorkDetailedBody"></tbody>
+      </table>
     </div>
   </div>
+
+  <!-- Historical line chart for the past 2 years -->
+  <div class="chart-box">
+    <h3>2-Year Trend: Newly Eligible vs. Aging Out</h3>
+    <canvas id="futureWorkHistoryChart"></canvas>
+  </div>
+</div>
+
+
+    
+///////////////////////////////////////////////////////////////////////////////
+// 1) Extra Data for deeper financial analysis & historical trend
+///////////////////////////////////////////////////////////////////////////////
+
+const futureWorkFinancialData = {
+  // Keyed by practice ID or 'all'
+  // "valuePerPatient" is a rough estimate of extra QOF income per new patient
+  // and some lost income per aging-out patient (this is all dummy).
+  all: {
+    valuePerNew: 35,    // Suppose each newly-eligible patient is worth ~£35
+    valuePerLost: 20    // Suppose losing a patient costs ~£20 of missed QOF
+  },
+  A: { valuePerNew: 30, valuePerLost: 20 },
+  B: { valuePerNew: 33, valuePerLost: 18 },
+  C: { valuePerNew: 32, valuePerLost: 19 },
+  D: { valuePerNew: 35, valuePerLost: 21 },
+  E: { valuePerNew: 36, valuePerLost: 17 },
+  F: { valuePerNew: 38, valuePerLost: 16 },
+  G: { valuePerNew: 31, valuePerLost: 20 },
+  H: { valuePerNew: 37, valuePerLost: 19 },
+  I: { valuePerNew: 34, valuePerLost: 20 },
+};
+
+// For the 2-year historical trend, let’s store arrays of newly-eligible vs. out for 2 years
+// Just an example: each year we have "yearLabel", "new", "out"
+const past2YearsData = {
+  all: [
+    { yearLabel: "2022/23", newlyIn: 230, out: 60 },
+    { yearLabel: "2023/24", newlyIn: 250, out: 90 }
+  ],
+  A: [
+    { yearLabel: "2022/23", newlyIn: 20, out: 10 },
+    { yearLabel: "2023/24", newlyIn: 35, out: 15 }
+  ],
+  // ...
+  // Repeat for B, C, etc., or just keep them the same as "all" if you want
+};
+
+///////////////////////////////////////////////////////////////////////////////
+// 2) Build new charts: financial bar chart & historical line chart
+///////////////////////////////////////////////////////////////////////////////
+let futureWorkFinancialChart, futureWorkHistoryChart;
+
+function buildFutureWorkAdditionalCharts() {
+  // We'll do this once on DOMContentLoaded, 
+  // then update the data whenever practice changes.
+
+  const financialCanvas = document.getElementById("futureWorkFinancialChart");
+  futureWorkFinancialChart = new Chart(financialCanvas, {
+    type: "bar",
+    data: { labels: [], datasets: [] },
+    options: {
+      responsive: true,
+      scales: { y: { beginAtZero: true } }
+    }
+  });
+
+  const historyCanvas = document.getElementById("futureWorkHistoryChart");
+  futureWorkHistoryChart = new Chart(historyCanvas, {
+    type: "line",
+    data: { labels: [], datasets: [] },
+    options: {
+      responsive: true,
+      scales: { y: { beginAtZero: true } }
+    }
+  });
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// 3) Update the new deeper analysis
+///////////////////////////////////////////////////////////////////////////////
+function updateFutureWorkPage(practiceId) {
+  // We'll fetch the correct data from your existing futureWorkDataByPractice
+  const dataArray = futureWorkDataByPractice[practiceId] || futureWorkDataByPractice.all;
+
+  // We'll also get the financial info
+  const finInfo = futureWorkFinancialData[practiceId] || futureWorkFinancialData.all;
+
+  // 3.1 Fill the KPI cards (#futureWorkCards replaced with #futureWorkKPICards if you want)
+  const fwCards = document.getElementById("futureWorkCards") || 
+                  document.getElementById("futureWorkKPICards") || 
+                  document.createElement("div");
+  fwCards.innerHTML = "";
+
+  let totalIn = 0, totalOut = 0;
+  dataArray.forEach(d => { totalIn += d.comingIn; totalOut += d.goingOut; });
+  const net = totalIn - totalOut;
+
+  fwCards.appendChild(buildCard("Newly Eligible", String(totalIn)));
+  fwCards.appendChild(buildCard("Aging Out", String(totalOut)));
+  fwCards.appendChild(buildCard("Net Patients", net >= 0? "+"+net : ""+net));
+
+  // 3.2 Fill the detailed table (#futureWorkDetailedBody)
+  const tb = document.getElementById("futureWorkDetailedBody");
+  tb.innerHTML = "";
+  dataArray.forEach(d => {
+    const netP = d.comingIn - d.goingOut;
+    // Estimate income
+    const incGain = d.comingIn * finInfo.valuePerNew;
+    const incLoss = d.goingOut * finInfo.valuePerLost;
+    const netIncome = incGain - incLoss;
+
+    const row = document.createElement("tr");
+    row.innerHTML = `
+      <td>${d.indicator}</td>
+      <td>${d.comingIn}</td>
+      <td>${d.goingOut}</td>
+      <td>${netP>=0? "+"+netP : netP}</td>
+      <td>£${netIncome>=0? netIncome.toFixed(0) : netIncome.toFixed(0)}</td>
+    `;
+    tb.appendChild(row);
+  });
+
+  // 3.3 Build the financial bar chart
+  //   We'll do total income gained minus lost across all indicators
+  let totalIncGained = 0, totalIncLost = 0;
+  dataArray.forEach(d => {
+    totalIncGained += d.comingIn * finInfo.valuePerNew;
+    totalIncLost   += d.goingOut * finInfo.valuePerLost;
+  });
+  const netFin = totalIncGained - totalIncLost;
+
+  futureWorkFinancialChart.data.labels = ["Total Gained", "Total Lost", "Net"];
+  futureWorkFinancialChart.data.datasets = [
+    {
+      label: "Financial Impact (£)",
+      data: [ totalIncGained, totalIncLost, netFin ],
+      backgroundColor: ["#00A499","#FF8C00","#768692"]
+    }
+  ];
+  futureWorkFinancialChart.update();
+
+  // 3.4 Historical line chart
+  //   We'll pick the last 2 years from 'past2YearsData'
+  const hist = past2YearsData[practiceId] || past2YearsData.all;
+  futureWorkHistoryChart.data.labels = hist.map(h => h.yearLabel);
+  futureWorkHistoryChart.data.datasets = [
+    {
+      label: "Newly Eligible (past yrs)",
+      data: hist.map(h => h.newlyIn),
+      borderColor: "#00A499",
+      backgroundColor: "rgba(0,164,153,0.2)",
+      fill: true
+    },
+    {
+      label: "Aging Out (past yrs)",
+      data: hist.map(h => h.out),
+      borderColor: "#FF8C00",
+      backgroundColor: "rgba(255,140,0,0.2)",
+      fill: true
+    }
+  ];
+  futureWorkHistoryChart.update();
+}
+
+
+    
 
   <script>
     //==== Data arrays for main dashboard
