@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <title>QOF Dashboard 2024/25 (Extended)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     body {
@@ -230,13 +231,12 @@
       <div id="indicatorOppContent"></div>
     </div>
 
-    <!-- PREDICTING FUTURE WORK -->
+    <!-- PREDICTING FUTURE WORK SECTION -->
     <div id="predictingWorkSection" class="section">
       <h2>Predicting Future Work</h2>
       <p>
         Forecast how many patients will join or leave certain <em>age-based</em> QOF 
         indicators, so you can plan upcoming workload and potential new/lost income.
-        
       </p>
       <div class="cards" id="futureWorkCards"></div>
       <div class="chart-row">
@@ -257,6 +257,17 @@
             </thead>
             <tbody id="futureWorkTableBody"></tbody>
           </table>
+        </div>
+      </div>
+      <!-- Additional Charts for Predicting Future Work -->
+      <div class="chart-row">
+        <div class="chart-box">
+          <h3>Financial Impact Sensitivity</h3>
+          <canvas id="financialImpactChart"></canvas>
+        </div>
+        <div class="chart-box">
+          <h3>Past 2 Years KPI Trend</h3>
+          <canvas id="pastKpiChart"></canvas>
         </div>
       </div>
     </div>
@@ -387,8 +398,20 @@
       ]
     };
 
+    //==== Past Work Data for last 2 years (dummy data for KPI trend)
+    const pastWorkDataByPractice = {
+      all: [
+        { indicator:"BP002 (45+)", lastYear: { comingIn: 230, goingOut: 0 }, yearBefore: { comingIn: 210, goingOut: 0 } },
+        { indicator:"DM017 (17+)", lastYear: { comingIn: 110, goingOut: 0 }, yearBefore: { comingIn: 100, goingOut: 0 } },
+        { indicator:"OB003 (18+)", lastYear: { comingIn: 160, goingOut: 0 }, yearBefore: { comingIn: 150, goingOut: 0 } },
+        { indicator:"Example 18-50", lastYear: { comingIn: 90, goingOut: 80 }, yearBefore: { comingIn: 85, goingOut: 75 } }
+      ]
+      // You can add practice-specific data if available; otherwise "all" will be used.
+    };
+
     // Chart references
     let incomeChart, performanceChart, missedChart, indicatorChart, futureWorkChart;
+    let financialImpactChart, pastKpiChart;
 
     // On page load
     document.addEventListener("DOMContentLoaded", () => {
@@ -401,7 +424,7 @@
         select.appendChild(opt);
       });
 
-      // Build main page
+      // Build main page charts
       buildAllCharts();
       updateDashboard("all"); // default main page
 
@@ -410,16 +433,24 @@
         const chosen = e.target.value;
         updateDashboard(chosen);
         updateFutureWorkPage(chosen);
+        updateFinancialImpactChart(chosen);
+        updatePastKpiChart(chosen);
       });
 
       // Build QuickWins table
       buildQuickWinsTable();
-      // Build IndicatorOpp
+      // Build IndicatorOpp page
       buildIndicatorOppPage();
 
       // Build the future work chart once, then populate with "all"
       buildFutureWorkChart();
       updateFutureWorkPage("all");
+
+      // Build additional Predicting Future Work charts
+      buildFinancialImpactChart();
+      updateFinancialImpactChart("all");
+      buildPastKpiChart();
+      updatePastKpiChart("all");
     });
 
     // QuickWins
@@ -529,6 +560,91 @@
         { label:"Aging Out", data: outD, backgroundColor:"#FF8C00" }
       ];
       futureWorkChart.update();
+    }
+
+    // Additional Charts for Predicting Future Work
+
+    // Financial Impact Sensitivity Chart
+    function buildFinancialImpactChart(){
+      financialImpactChart = new Chart(document.getElementById("financialImpactChart"), {
+        type: "bar",
+        data: {
+          labels: [],
+          datasets: [
+            {
+              label: "Base Financial Impact",
+              data: [],
+              backgroundColor: "#005EB8"
+            },
+            {
+              label: "Increased by 10%",
+              data: [],
+              backgroundColor: "#0072CE"
+            },
+            {
+              label: "Decreased by 10%",
+              data: [],
+              backgroundColor: "#FF8C00"
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          scales: { y: { beginAtZero: true } }
+        }
+      });
+    }
+    function updateFinancialImpactChart(practiceId){
+      const dataArray = futureWorkDataByPractice[practiceId] || futureWorkDataByPractice.all;
+      // Assume a conversion factor of £50 per patient for financial gain.
+      const labels = dataArray.map(d => d.indicator);
+      const baseGains = dataArray.map(d => ((d.comingIn - d.goingOut) * 50));
+      const increasedGains = dataArray.map(d => (((d.comingIn * 1.1) - d.goingOut) * 50));
+      const decreasedGains = dataArray.map(d => (((d.comingIn * 0.9) - d.goingOut) * 50));
+
+      financialImpactChart.data.labels = labels;
+      financialImpactChart.data.datasets[0].data = baseGains;
+      financialImpactChart.data.datasets[1].data = increasedGains;
+      financialImpactChart.data.datasets[2].data = decreasedGains;
+      financialImpactChart.update();
+    }
+
+    // Past 2 Years KPI Trend Chart
+    function buildPastKpiChart(){
+      pastKpiChart = new Chart(document.getElementById("pastKpiChart"), {
+        type: "bar",
+        data: {
+          labels: [],
+          datasets: [
+            {
+              label: "Last Year",
+              data: [],
+              backgroundColor: "#00A499"
+            },
+            {
+              label: "Year Before Last",
+              data: [],
+              backgroundColor: "#768692"
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          scales: { y: { beginAtZero: true } }
+        }
+      });
+    }
+    function updatePastKpiChart(practiceId){
+      const dataArray = pastWorkDataByPractice[practiceId] || pastWorkDataByPractice.all;
+      const labels = dataArray.map(d => d.indicator);
+      // Using the same £50 conversion factor for financial impact
+      const lastYearGains = dataArray.map(d => ((d.lastYear.comingIn - d.lastYear.goingOut) * 50));
+      const yearBeforeGains = dataArray.map(d => ((d.yearBefore.comingIn - d.yearBefore.goingOut) * 50));
+
+      pastKpiChart.data.labels = labels;
+      pastKpiChart.data.datasets[0].data = lastYearGains;
+      pastKpiChart.data.datasets[1].data = yearBeforeGains;
+      pastKpiChart.update();
     }
 
     // Main Page Charts
@@ -713,4 +829,3 @@
   </script>
 </body>
 </html>
-
