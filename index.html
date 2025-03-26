@@ -230,50 +230,37 @@
       <div id="indicatorOppContent"></div>
     </div>
 
-<!-- ======================== -->
-<!-- PREDICTING FUTURE WORK PAGE (REPLACEMENT) -->
-<!-- ======================== -->
-<div id="predictingWorkSection" class="section">
-  <h2>Predicting Future Work</h2>
-  <p>
-    This page gives deeper financial insights into newly eligible vs. aging-out patients.
-    We also show historical data (past 2 years) to give you a trend of how many patients 
-    were added or removed from relevant age-based indicators. 
-  </p>
-
-  <!-- KPI Cards for historical view -->
-  <div class="cards" id="futureWorkKPICards"></div>
-
-  <!-- Deeper financial analysis chart -->
-  <div class="chart-row">
-    <div class="chart-box">
-      <h3>Financial Impact of New vs. Leaving Patients</h3>
-      <canvas id="futureWorkFinancialChart"></canvas>
-    </div>
-    <div class="chart-box">
-      <h3>Summary Table</h3>
-      <table>
-        <thead>
-          <tr>
-            <th>Indicator</th>
-            <th>Coming In</th>
-            <th>Aging Out</th>
-            <th>Net Patients</th>
-            <th>Est. Income Impact (£)</th>
-          </tr>
-        </thead>
-        <tbody id="futureWorkDetailedBody"></tbody>
-      </table>
+    <!-- PREDICTING FUTURE WORK -->
+    <div id="predictingWorkSection" class="section">
+      <h2>Predicting Future Work</h2>
+      <p>
+        Forecast how many patients will join or leave certain <em>age-based</em> QOF 
+        indicators, so you can plan upcoming workload and potential new/lost income.
+        
+      </p>
+      <div class="cards" id="futureWorkCards"></div>
+      <div class="chart-row">
+        <div class="chart-box">
+          <h3>New vs. Leaving Patients</h3>
+          <canvas id="futureWorkChart"></canvas>
+        </div>
+        <div class="chart-box">
+          <h3>Summary Table</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Indicator</th>
+                <th>Coming In</th>
+                <th>Aging Out</th>
+                <th>Net Gain</th>
+              </tr>
+            </thead>
+            <tbody id="futureWorkTableBody"></tbody>
+          </table>
+        </div>
+      </div>
     </div>
   </div>
-
-  <!-- Historical line chart for the past 2 years -->
-  <div class="chart-box">
-    <h3>2-Year Trend: Newly Eligible vs. Aging Out</h3>
-    <canvas id="futureWorkHistoryChart"></canvas>
-  </div>
-</div>
- 
 
   <script>
     //==== Data arrays for main dashboard
