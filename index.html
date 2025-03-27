@@ -141,6 +141,8 @@
       <button onclick="showPage('indicatorOppSection')">Indicator Opportunities</button> 
       <button onclick="showPage('quickWinsSection')">Detailed Quick Wins</button>
       <button onclick="showPage('localHelpSection')">Local Help for QOF</button>
+      <button onclick="showPage('registerInsightsSection')">Register & Income Insights</button>
+      <button onclick="showPage('padPerformanceSection')">PAD Performance</button>
     </div>
 
     <!-- MAIN DASHBOARD SECTION -->
@@ -224,7 +226,7 @@
       </p>
     </div>
 
-    <!-- INDICATOR OPPORTUNITIES -->
+    <!-- INDICATOR OPPORTUNITIES SECTION -->
     <div id="indicatorOppSection" class="section">
       <h2>Indicator Opportunities</h2>
       <p>Top 5 easiest patients for each indicator, near target or frequently in practice.</p>
@@ -259,7 +261,6 @@
           </table>
         </div>
       </div>
-      <!-- Additional Charts for Predicting Future Work -->
       <div class="chart-row">
         <div class="chart-box">
           <h3>Financial Impact Sensitivity</h3>
@@ -271,10 +272,61 @@
         </div>
       </div>
     </div>
+
+    <!-- REGISTER & INCOME INSIGHTS SECTION -->
+    <div id="registerInsightsSection" class="section">
+      <h2>Register & Income Insights</h2>
+      <p>This section analyzes register completeness and its impact on QOF income. Improving register accuracy can lead to better prevalence adjustments and increased income.</p>
+      <div class="chart-row">
+        <div class="chart-box">
+          <h3>Register Completeness (%)</h3>
+          <canvas id="registerChart"></canvas>
+        </div>
+        <div class="chart-box">
+          <h3>Potential Income Gain (£)</h3>
+          <canvas id="registerIncomeChart"></canvas>
+        </div>
+      </div>
+      <h3>Register Data Summary</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Practice</th>
+            <th>Register Completeness (%)</th>
+            <th>Potential Income Gain (£)</th>
+          </tr>
+        </thead>
+        <tbody id="registerTableBody"></tbody>
+      </table>
+    </div>
+
+    <!-- PAD PERFORMANCE SECTION -->
+    <div id="padPerformanceSection" class="section">
+      <h2>PAD Performance Insights</h2>
+      <p>This section focuses on the performance of the PAD register. It shows current performance against target levels and highlights potential income gains if targets are met.</p>
+      <div class="chart-row">
+        <div class="chart-box">
+          <h3>PAD Performance (%)</h3>
+          <canvas id="padChart"></canvas>
+        </div>
+      </div>
+      <h3>PAD Data Summary</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Practice</th>
+            <th>Current Performance (%)</th>
+            <th>Target (%)</th>
+            <th>Potential Income Gain (£)</th>
+          </tr>
+        </thead>
+        <tbody id="padTableBody"></tbody>
+      </table>
+    </div>
   </div>
 
   <script>
-    //==== Data arrays for main dashboard
+    //==== Existing Data arrays for main dashboard
     const practices = [
       { id:"A", name:"Practice A", income:150000, performance:81, missed:20000, indicatorProg:70 },
       { id:"B", name:"Practice B", income:130000, performance:75, missed:15000, indicatorProg:64 },
@@ -300,7 +352,7 @@
       { id:"I", borderlineCount: 7, potentialIncome:1900, intervention:"Medication review" }
     ];
 
-    //==== Indicator Opp
+    //==== Indicator Opportunities
     const indicatorOpData = [
       {
         indicatorName:"Hypertension (HYP008/009)",
@@ -406,14 +458,38 @@
         { indicator:"OB003 (18+)", lastYear: { comingIn: 160, goingOut: 0 }, yearBefore: { comingIn: 150, goingOut: 0 } },
         { indicator:"Example 18-50", lastYear: { comingIn: 90, goingOut: 80 }, yearBefore: { comingIn: 85, goingOut: 75 } }
       ]
-      // You can add practice-specific data if available; otherwise "all" will be used.
     };
 
-    // Chart references
+    //==== New Data arrays for additional insights
+    const registerQualityData = [
+      { id:"A", registerCompleteness: 85, potentialIncomeGain: 5000 },
+      { id:"B", registerCompleteness: 80, potentialIncomeGain: 4500 },
+      { id:"C", registerCompleteness: 78, potentialIncomeGain: 4200 },
+      { id:"D", registerCompleteness: 90, potentialIncomeGain: 6000 },
+      { id:"E", registerCompleteness: 75, potentialIncomeGain: 4000 },
+      { id:"F", registerCompleteness: 88, potentialIncomeGain: 5500 },
+      { id:"G", registerCompleteness: 82, potentialIncomeGain: 4800 },
+      { id:"H", registerCompleteness: 80, potentialIncomeGain: 4600 },
+      { id:"I", registerCompleteness: 83, potentialIncomeGain: 4900 }
+    ];
+
+    const padPerformanceData = [
+      { id:"A", currentPerformance: 70, targetPerformance: 85, potentialGain: 1500 },
+      { id:"B", currentPerformance: 65, targetPerformance: 85, potentialGain: 1800 },
+      { id:"C", currentPerformance: 60, targetPerformance: 85, potentialGain: 2100 },
+      { id:"D", currentPerformance: 75, targetPerformance: 85, potentialGain: 1200 },
+      { id:"E", currentPerformance: 55, targetPerformance: 85, potentialGain: 2500 },
+      { id:"F", currentPerformance: 80, targetPerformance: 85, potentialGain: 1000 },
+      { id:"G", currentPerformance: 68, targetPerformance: 85, potentialGain: 1700 },
+      { id:"H", currentPerformance: 72, targetPerformance: 85, potentialGain: 1300 },
+      { id:"I", currentPerformance: 66, targetPerformance: 85, potentialGain: 1900 }
+    ];
+
+    //==== Chart references
     let incomeChart, performanceChart, missedChart, indicatorChart, futureWorkChart;
     let financialImpactChart, pastKpiChart;
+    let registerChart, registerIncomeChart, padChart;
 
-    // On page load
     document.addEventListener("DOMContentLoaded", () => {
       // Populate practice dropdown
       const select = document.getElementById("practiceSelect");
@@ -424,9 +500,24 @@
         select.appendChild(opt);
       });
 
-      // Build main page charts
+      // Build all existing charts
       buildAllCharts();
-      updateDashboard("all"); // default main page
+      buildFutureWorkChart();
+      buildFinancialImpactChart();
+      buildPastKpiChart();
+
+      // Build new charts for additional insights
+      buildRegisterChart();
+      buildRegisterIncomeChart();
+      buildPadChart();
+
+      // Update dashboard with default "all" selection
+      updateDashboard("all");
+      updateFutureWorkPage("all");
+      updateFinancialImpactChart("all");
+      updatePastKpiChart("all");
+      updateRegisterInsights("all");
+      updatePadInsights("all");
 
       // Listen for changes in the practice filter
       select.addEventListener("change", e => {
@@ -435,22 +526,13 @@
         updateFutureWorkPage(chosen);
         updateFinancialImpactChart(chosen);
         updatePastKpiChart(chosen);
+        updateRegisterInsights(chosen);
+        updatePadInsights(chosen);
       });
 
-      // Build QuickWins table
+      // Build QuickWins and IndicatorOpp pages
       buildQuickWinsTable();
-      // Build IndicatorOpp page
       buildIndicatorOppPage();
-
-      // Build the future work chart once, then populate with "all"
-      buildFutureWorkChart();
-      updateFutureWorkPage("all");
-
-      // Build additional Predicting Future Work charts
-      buildFinancialImpactChart();
-      updateFinancialImpactChart("all");
-      buildPastKpiChart();
-      updatePastKpiChart("all");
     });
 
     // QuickWins
@@ -469,7 +551,7 @@
       });
     }
 
-    // IndicatorOpp
+    // Indicator Opportunities
     function buildIndicatorOppPage(){
       const container = document.getElementById("indicatorOppContent");
       indicatorOpData.forEach(ind => {
@@ -506,7 +588,7 @@
       });
     }
 
-    // Future Work
+    // Future Work Chart
     function buildFutureWorkChart(){
       futureWorkChart = new Chart(document.getElementById("futureWorkChart"), {
         type:"bar",
@@ -521,22 +603,18 @@
     }
     function updateFutureWorkPage(practiceId){
       const dataArray = futureWorkDataByPractice[practiceId] || futureWorkDataByPractice.all;
-
-      // Summaries
       let totalIn=0, totalOut=0;
       dataArray.forEach(d => { totalIn+=d.comingIn; totalOut+=d.goingOut; });
       const net = totalIn - totalOut;
 
-      // Cards
       const fwCards = document.getElementById("futureWorkCards");
-      fwCards.innerHTML="";
+      fwCards.innerHTML = "";
       fwCards.appendChild(buildCard("Newly Eligible", String(totalIn)));
       fwCards.appendChild(buildCard("Aging Out", String(totalOut)));
-      fwCards.appendChild(buildCard("Net Change", (net>=0?`+${net}`:String(net)) ));
-
-      // Table
+      fwCards.appendChild(buildCard("Net Change", (net>=0 ? `+${net}` : String(net))));
+      
       const tb = document.getElementById("futureWorkTableBody");
-      tb.innerHTML="";
+      tb.innerHTML = "";
       dataArray.forEach(d => {
         const row = document.createElement("tr");
         const diff = d.comingIn - d.goingOut;
@@ -544,25 +622,21 @@
           <td>${d.indicator}</td>
           <td>${d.comingIn}</td>
           <td>${d.goingOut}</td>
-          <td>${diff>=0?`+${diff}`:diff}</td>
+          <td>${diff>=0 ? `+${diff}` : diff}</td>
         `;
         tb.appendChild(row);
       });
-
-      // Chart
+      
       const labs = dataArray.map(d => d.indicator);
       const inD = dataArray.map(d => d.comingIn);
-      const outD= dataArray.map(d => d.goingOut);
-
-      futureWorkChart.data.labels=labs;
-      futureWorkChart.data.datasets=[
+      const outD = dataArray.map(d => d.goingOut);
+      futureWorkChart.data.labels = labs;
+      futureWorkChart.data.datasets = [
         { label:"Newly Eligible", data: inD, backgroundColor:"#00A499" },
         { label:"Aging Out", data: outD, backgroundColor:"#FF8C00" }
       ];
       futureWorkChart.update();
     }
-
-    // Additional Charts for Predicting Future Work
 
     // Financial Impact Sensitivity Chart
     function buildFinancialImpactChart(){
@@ -571,37 +645,20 @@
         data: {
           labels: [],
           datasets: [
-            {
-              label: "Base Financial Impact",
-              data: [],
-              backgroundColor: "#005EB8"
-            },
-            {
-              label: "Increased by 10%",
-              data: [],
-              backgroundColor: "#0072CE"
-            },
-            {
-              label: "Decreased by 10%",
-              data: [],
-              backgroundColor: "#FF8C00"
-            }
+            { label: "Base Financial Impact", data: [], backgroundColor: "#005EB8" },
+            { label: "Increased by 10%", data: [], backgroundColor: "#0072CE" },
+            { label: "Decreased by 10%", data: [], backgroundColor: "#FF8C00" }
           ]
         },
-        options: {
-          responsive: true,
-          scales: { y: { beginAtZero: true } }
-        }
+        options: { responsive: true, scales: { y: { beginAtZero: true } } }
       });
     }
     function updateFinancialImpactChart(practiceId){
       const dataArray = futureWorkDataByPractice[practiceId] || futureWorkDataByPractice.all;
-      // Assume a conversion factor of £50 per patient for financial gain.
       const labels = dataArray.map(d => d.indicator);
       const baseGains = dataArray.map(d => ((d.comingIn - d.goingOut) * 50));
       const increasedGains = dataArray.map(d => (((d.comingIn * 1.1) - d.goingOut) * 50));
       const decreasedGains = dataArray.map(d => (((d.comingIn * 0.9) - d.goingOut) * 50));
-
       financialImpactChart.data.labels = labels;
       financialImpactChart.data.datasets[0].data = baseGains;
       financialImpactChart.data.datasets[1].data = increasedGains;
@@ -616,31 +673,18 @@
         data: {
           labels: [],
           datasets: [
-            {
-              label: "Last Year",
-              data: [],
-              backgroundColor: "#00A499"
-            },
-            {
-              label: "Year Before Last",
-              data: [],
-              backgroundColor: "#768692"
-            }
+            { label: "Last Year", data: [], backgroundColor: "#00A499" },
+            { label: "Year Before Last", data: [], backgroundColor: "#768692" }
           ]
         },
-        options: {
-          responsive: true,
-          scales: { y: { beginAtZero: true } }
-        }
+        options: { responsive: true, scales: { y: { beginAtZero: true } } }
       });
     }
     function updatePastKpiChart(practiceId){
       const dataArray = pastWorkDataByPractice[practiceId] || pastWorkDataByPractice.all;
       const labels = dataArray.map(d => d.indicator);
-      // Using the same £50 conversion factor for financial impact
       const lastYearGains = dataArray.map(d => ((d.lastYear.comingIn - d.lastYear.goingOut) * 50));
       const yearBeforeGains = dataArray.map(d => ((d.yearBefore.comingIn - d.yearBefore.goingOut) * 50));
-
       pastKpiChart.data.labels = labels;
       pastKpiChart.data.datasets[0].data = lastYearGains;
       pastKpiChart.data.datasets[1].data = yearBeforeGains;
@@ -651,119 +695,164 @@
     function buildAllCharts(){
       incomeChart = new Chart(document.getElementById("incomeChart"), {
         type:"bar",
-        data:{
-          labels:[],
-          datasets:[{
-            label:"Income (£)",
-            data:[],
-            backgroundColor:"#005EB8"
-          }]
-        },
-        options:{
-          responsive:true,
-          scales:{ y:{ beginAtZero:true } }
-        }
+        data:{ labels:[], datasets:[{ label:"Income (£)", data:[], backgroundColor:"#005EB8" }] },
+        options:{ responsive:true, scales:{ y:{ beginAtZero:true } } }
       });
       performanceChart = new Chart(document.getElementById("performanceChart"), {
         type:"bar",
-        data:{
-          labels:[],
-          datasets:[{
-            label:"Performance (%)",
-            data:[],
-            backgroundColor:"#0072CE"
-          }]
-        },
-        options:{
-          responsive:true,
-          scales:{ y:{ beginAtZero:true, max:100 } }
-        }
+        data:{ labels:[], datasets:[{ label:"Performance (%)", data:[], backgroundColor:"#0072CE" }] },
+        options:{ responsive:true, scales:{ y:{ beginAtZero:true, max:100 } } }
       });
       missedChart = new Chart(document.getElementById("missedChart"), {
         type:"bar",
-        data:{
-          labels:[],
-          datasets:[{
-            label:"Missed Income (£)",
-            data:[],
-            backgroundColor:"#FF8C00"
-          }]
-        },
-        options:{
-          responsive:true,
-          scales:{ y:{ beginAtZero:true } }
-        }
+        data:{ labels:[], datasets:[{ label:"Missed Income (£)", data:[], backgroundColor:"#FF8C00" }] },
+        options:{ responsive:true, scales:{ y:{ beginAtZero:true } } }
       });
       indicatorChart = new Chart(document.getElementById("indicatorChart"), {
         type:"doughnut",
-        data:{
-          labels:["Clinical","Public Health","QI","Add.Services"],
-          datasets:[{
-            label:"Indicator Progress",
-            data:[],
-            backgroundColor:["#005EB8","#0072CE","#768692","#00A499"]
-          }]
-        },
-        options:{
-          responsive:true,
-          plugins:{
-            legend:{ position:"bottom" }
-          }
-        }
+        data:{ labels:["Clinical","Public Health","QI","Add.Services"], datasets:[{ label:"Indicator Progress", data:[], backgroundColor:["#005EB8","#0072CE","#768692","#00A499"] }] },
+        options:{ responsive:true, plugins:{ legend:{ position:"bottom" } } }
       });
     }
 
+    // New: Register & Income Insights Charts
+    function buildRegisterChart(){
+      registerChart = new Chart(document.getElementById("registerChart"), {
+        type:"bar",
+        data:{ labels:[], datasets:[{ label:"Register Completeness (%)", data:[], backgroundColor:"#0072CE" }] },
+        options:{ responsive:true, scales:{ y:{ beginAtZero:true, max:100 } } }
+      });
+    }
+    function buildRegisterIncomeChart(){
+      registerIncomeChart = new Chart(document.getElementById("registerIncomeChart"), {
+        type:"bar",
+        data:{ labels:[], datasets:[{ label:"Potential Income Gain (£)", data:[], backgroundColor:"#FF8C00" }] },
+        options:{ responsive:true, scales:{ y:{ beginAtZero:true } } }
+      });
+    }
+    function updateRegisterInsights(practiceId){
+      // Filter new insight data based on practice
+      const regData = registerQualityData.filter(d => practiceId === "all" ? true : d.id === practiceId);
+      const labels = regData.map(d => {
+        const pr = practices.find(p => p.id === d.id);
+        return pr ? pr.name : d.id;
+      });
+      const completeness = regData.map(d => d.registerCompleteness);
+      const incomeGains = regData.map(d => d.potentialIncomeGain);
+      
+      // Update charts
+      registerChart.data.labels = labels;
+      registerChart.data.datasets[0].data = completeness;
+      registerChart.update();
+      
+      registerIncomeChart.data.labels = labels;
+      registerIncomeChart.data.datasets[0].data = incomeGains;
+      registerIncomeChart.update();
+      
+      // Update summary table
+      const tb = document.getElementById("registerTableBody");
+      tb.innerHTML = "";
+      regData.forEach(d => {
+        const pr = practices.find(p => p.id === d.id);
+        const row = document.createElement("tr");
+        row.innerHTML = `
+          <td>${pr ? pr.name : d.id}</td>
+          <td>${d.registerCompleteness}%</td>
+          <td>£${d.potentialIncomeGain}</td>
+        `;
+        tb.appendChild(row);
+      });
+    }
+
+    // New: PAD Performance Insights Chart
+    function buildPadChart(){
+      padChart = new Chart(document.getElementById("padChart"), {
+        type:"bar",
+        data:{ labels:[], datasets:[
+          { label:"Current Performance (%)", data:[], backgroundColor:"#005EB8" },
+          { label:"Target (%)", data:[], backgroundColor:"#00A499" }
+        ] },
+        options:{ responsive:true, scales:{ y:{ beginAtZero:true, max:100 } } }
+      });
+    }
+    function updatePadInsights(practiceId){
+      const padData = padPerformanceData.filter(d => practiceId === "all" ? true : d.id === practiceId);
+      const labels = padData.map(d => {
+        const pr = practices.find(p => p.id === d.id);
+        return pr ? pr.name : d.id;
+      });
+      const current = padData.map(d => d.currentPerformance);
+      const target = padData.map(d => d.targetPerformance);
+      
+      padChart.data.labels = labels;
+      padChart.data.datasets[0].data = current;
+      padChart.data.datasets[1].data = target;
+      padChart.update();
+      
+      // Update PAD summary table
+      const tb = document.getElementById("padTableBody");
+      tb.innerHTML = "";
+      padData.forEach(d => {
+        const pr = practices.find(p => p.id === d.id);
+        const row = document.createElement("tr");
+        row.innerHTML = `
+          <td>${pr ? pr.name : d.id}</td>
+          <td>${d.currentPerformance}%</td>
+          <td>${d.targetPerformance}%</td>
+          <td>£${d.potentialGain}</td>
+        `;
+        tb.appendChild(row);
+      });
+    }
+
+    // Utility: Build a card element
+    function buildCard(t, v){
+      const cd = document.createElement("div");
+      cd.className = "card";
+      cd.innerHTML = `<h2>${t}</h2><p>${v}</p>`;
+      return cd;
+    }
+
+    // Update Main Dashboard Charts
     function updateDashboard(practiceId){
       let filtered = [];
       if(practiceId==="all"){
-        filtered=[...practices];
+        filtered = [...practices];
       } else {
         const one = practices.find(x => x.id===practiceId);
         if(one) filtered.push(one);
       }
-
       updateCards(filtered, practiceId==="all");
       updateTable(filtered, practiceId==="all");
       updateCharts(filtered, practiceId==="all");
     }
     function updateCards(arr, isAll){
       const cdiv = document.getElementById("cardsContainer");
-      cdiv.innerHTML="";
+      cdiv.innerHTML = "";
       if(isAll){
-        let totalInc=0, totalPerf=0, totalMiss=0, totalInd=0;
-        arr.forEach(x=>{
-          totalInc+=x.income; totalPerf+=x.performance; totalMiss+=x.missed; totalInd+=x.indicatorProg;
-        });
-        const avgPerf = totalPerf/arr.length;
-        const avgInd = totalInd/arr.length;
-        cdiv.appendChild(buildCard("Total Income (All)",`£${totalInc.toLocaleString()}`));
-        cdiv.appendChild(buildCard("Avg.Performance",`${avgPerf.toFixed(0)}%`));
-        cdiv.appendChild(buildCard("Total Missed Income",`£${totalMiss.toLocaleString()}`));
-        cdiv.appendChild(buildCard("Indicators Complete(Avg.)",`${avgInd.toFixed(0)}%`));
+        let totalInc = 0, totalPerf = 0, totalMiss = 0, totalInd = 0;
+        arr.forEach(x => { totalInc += x.income; totalPerf += x.performance; totalMiss += x.missed; totalInd += x.indicatorProg; });
+        const avgPerf = totalPerf / arr.length;
+        const avgInd = totalInd / arr.length;
+        cdiv.appendChild(buildCard("Total Income (All)", `£${totalInc.toLocaleString()}`));
+        cdiv.appendChild(buildCard("Avg. Performance", `${avgPerf.toFixed(0)}%`));
+        cdiv.appendChild(buildCard("Total Missed Income", `£${totalMiss.toLocaleString()}`));
+        cdiv.appendChild(buildCard("Indicators Complete (Avg.)", `${avgInd.toFixed(0)}%`));
       } else {
         const p = arr[0];
-        cdiv.appendChild(buildCard(`Income (${p.name})`,`£${p.income.toLocaleString()}`));
-        cdiv.appendChild(buildCard(`Performance (${p.name})`,`${p.performance}%`));
-        cdiv.appendChild(buildCard(`Missed Income (${p.name})`,`£${p.missed.toLocaleString()}`));
-        cdiv.appendChild(buildCard(`Indicators Complete (${p.name})`,`${p.indicatorProg}%`));
+        cdiv.appendChild(buildCard(`Income (${p.name})`, `£${p.income.toLocaleString()}`));
+        cdiv.appendChild(buildCard(`Performance (${p.name})`, `${p.performance}%`));
+        cdiv.appendChild(buildCard(`Missed Income (${p.name})`, `£${p.missed.toLocaleString()}`));
+        cdiv.appendChild(buildCard(`Indicators Complete (${p.name})`, `${p.indicatorProg}%`));
       }
-    }
-    function buildCard(t,v){
-      const cd = document.createElement("div");
-      cd.className="card";
-      cd.innerHTML=`
-        <h2>${t}</h2>
-        <p>${v}</p>
-      `;
-      return cd;
     }
     function updateTable(arr, isAll){
       const tb = document.getElementById("practiceTableBody");
-      tb.innerHTML="";
+      tb.innerHTML = "";
       if(isAll){
-        practices.forEach(pr=>{
-          const row=document.createElement("tr");
-          row.innerHTML=`
+        practices.forEach(pr => {
+          const row = document.createElement("tr");
+          row.innerHTML = `
             <td>${pr.name}</td>
             <td>£${pr.income.toLocaleString()}</td>
             <td>${pr.performance}%</td>
@@ -774,8 +863,8 @@
         });
       } else {
         const p = arr[0];
-        const row=document.createElement("tr");
-        row.innerHTML=`
+        const row = document.createElement("tr");
+        row.innerHTML = `
           <td>${p.name}</td>
           <td>£${p.income.toLocaleString()}</td>
           <td>${p.performance}%</td>
@@ -785,45 +874,42 @@
         tb.appendChild(row);
       }
     }
-    function updateCharts(arr,isAll){
-      let labs=[], inc=[], perf=[], miss=[], inpr=[];
+    function updateCharts(arr, isAll){
+      let labs = [], inc = [], perf = [], miss = [], inpr = [];
       if(isAll){
-        labs=arr.map(x=>x.name);
-        inc =arr.map(x=>x.income);
-        perf=arr.map(x=>x.performance);
-        miss=arr.map(x=>x.missed);
-        const avgInd=arr.reduce((s,x)=>s+x.indicatorProg,0)/arr.length;
-        inpr=[avgInd,avgInd,avgInd,avgInd];
+        labs = arr.map(x => x.name);
+        inc = arr.map(x => x.income);
+        perf = arr.map(x => x.performance);
+        miss = arr.map(x => x.missed);
+        const avgInd = arr.reduce((s, x) => s + x.indicatorProg, 0) / arr.length;
+        inpr = [avgInd, avgInd, avgInd, avgInd];
       } else {
-        const p=arr[0];
+        const p = arr[0];
         labs.push(p.name);
         inc.push(p.income);
         perf.push(p.performance);
         miss.push(p.missed);
-        inpr=[p.indicatorProg,p.indicatorProg,p.indicatorProg,p.indicatorProg];
+        inpr = [p.indicatorProg, p.indicatorProg, p.indicatorProg, p.indicatorProg];
       }
-      // income
-      incomeChart.data.labels=labs;
-      incomeChart.data.datasets[0].data=inc;
+      incomeChart.data.labels = labs;
+      incomeChart.data.datasets[0].data = inc;
       incomeChart.update();
-      // performance
-      performanceChart.data.labels=labs;
-      performanceChart.data.datasets[0].data=perf;
+
+      performanceChart.data.labels = labs;
+      performanceChart.data.datasets[0].data = perf;
       performanceChart.update();
-      // missed
-      missedChart.data.labels=labs;
-      missedChart.data.datasets[0].data=miss;
+
+      missedChart.data.labels = labs;
+      missedChart.data.datasets[0].data = miss;
       missedChart.update();
-      // indicator progress
-      indicatorChart.data.datasets[0].data=inpr;
+
+      indicatorChart.data.datasets[0].data = inpr;
       indicatorChart.update();
     }
 
     // Show/hide sections
     function showPage(id){
-      document.querySelectorAll(".section").forEach(s=>{
-        s.classList.remove("active");
-      });
+      document.querySelectorAll(".section").forEach(s => { s.classList.remove("active"); });
       document.getElementById(id).classList.add("active");
     }
   </script>
